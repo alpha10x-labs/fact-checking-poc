@@ -1016,7 +1016,7 @@ with st.sidebar:
         index=0,
         help="Controls reasoning depth. Low is faster with similar quality."
     )
-    st.caption("💡 *For me I liked the low level — faster with minimal quality difference.*")
+    st.caption("💡 *For me I liked the low level — faster with minimal quality difference. but I did just minimal testing*")
     
     st.divider()
     
