@@ -995,7 +995,7 @@ with st.sidebar:
     # Formatter LLM
     formatter_llm = st.selectbox(
         "Formatter LLM",
-        ["GPT-4o Mini", "GPT-4o", "GPT-5 Mini", "Claude 4 Sonnet", "Claude 4.5 Sonnet"],
+        ["GPT-4o Mini", "GPT-4o", "Claude 4 Sonnet", "Claude 4.5 Sonnet"],
         index=0
     )
     
