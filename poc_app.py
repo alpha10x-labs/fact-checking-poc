@@ -1011,7 +1011,7 @@ with st.sidebar:
     st.subheader("🔑 API Keys Status")
     perplexity_ok = bool(get_env("PERPLEXITY_API_KEY"))
     gemini_ok = bool(get_env("GEMINI_API_KEY"))
-    openai_ok = bool(get_env("OPENAI_API_KEY"))
+    openai_ok = bool(get_env("AZURE_OPENAI_API_KEY"))
     anthropic_ok = bool(get_env("ANTHROPIC_API_KEY"))
     
     st.markdown(f"- Perplexity: {'✅' if perplexity_ok else '❌'}")
