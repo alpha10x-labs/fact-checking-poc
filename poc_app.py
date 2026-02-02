@@ -24,6 +24,20 @@ from langchain_anthropic import ChatAnthropic
 
 
 # ============================================================================
+# Utility: Get environment variable from either st.secrets or os.environ
+# ============================================================================
+def get_env(key: str, default=None):
+    """
+    Get environment variable from Streamlit secrets (cloud) or os.environ (local).
+    Tries st.secrets first, then falls back to os.getenv().
+    """
+    try:
+        return st.secrets.get(key, os.getenv(key, default))
+    except (AttributeError, FileNotFoundError):
+        return os.getenv(key, default)
+
+
+# ============================================================================
 # Simple LLM Factory (replaces safe_llm_core dependency)
 # ============================================================================
 
@@ -57,8 +71,8 @@ def get_llm(model_name: str, temperature: float = 0.0):
         )
     
     elif model_name == "GPT-5 Mini":
-        sweden_api_key = os.getenv("AZURE_OPENAI_SWEDEN_API_KEY")
-        sweden_endpoint = os.getenv("AZURE_OPENAI_SWEDEN_ENDPOINT")
+        sweden_api_key = get_env("AZURE_OPENAI_SWEDEN_API_KEY")
+        sweden_endpoint = get_env("AZURE_OPENAI_SWEDEN_ENDPOINT")
         return AzureChatOpenAI(
             azure_deployment="gpt-5-mini",
             model_name="gpt-5-mini",
@@ -518,7 +532,7 @@ def call_perplexity(
     model_name: str = "sonar-pro"
 ) -> dict:
     """Direct Perplexity API call."""
-    api_key = os.getenv("PERPLEXITY_API_KEY")
+    api_key = get_env("PERPLEXITY_API_KEY")
     if not api_key:
         raise ValueError("PERPLEXITY_API_KEY environment variable not set")
     
@@ -569,7 +583,7 @@ def call_gemini_fact_check(
     Returns:
         Dict with "result" (parsed model), "url_metadata", and "source_registry"
     """
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = get_env("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY environment variable not set")
     
@@ -995,10 +1009,10 @@ with st.sidebar:
     
     # Environment check
     st.subheader("🔑 API Keys Status")
-    perplexity_ok = bool(os.getenv("PERPLEXITY_API_KEY"))
-    gemini_ok = bool(os.getenv("GEMINI_API_KEY"))
-    openai_ok = bool(os.getenv("OPENAI_API_KEY"))
-    anthropic_ok = bool(os.getenv("ANTHROPIC_API_KEY"))
+    perplexity_ok = bool(get_env("PERPLEXITY_API_KEY"))
+    gemini_ok = bool(get_env("GEMINI_API_KEY"))
+    openai_ok = bool(get_env("OPENAI_API_KEY"))
+    anthropic_ok = bool(get_env("ANTHROPIC_API_KEY"))
     
     st.markdown(f"- Perplexity: {'✅' if perplexity_ok else '❌'}")
     st.markdown(f"- Gemini: {'✅' if gemini_ok else '❌'}")
@@ -1029,9 +1043,9 @@ run_button = st.button("🚀 Run Comparison", type="primary", use_container_widt
 if run_button:
     if not query.strip():
         st.error("Please enter a query")
-    elif not os.getenv("PERPLEXITY_API_KEY"):
+    elif not get_env("PERPLEXITY_API_KEY"):
         st.error("PERPLEXITY_API_KEY not set")
-    elif not os.getenv("GEMINI_API_KEY"):
+    elif not get_env("GEMINI_API_KEY"):
         st.error("GEMINI_API_KEY not set")
     else:
         preset = SECTION_PRESETS[section_type]
