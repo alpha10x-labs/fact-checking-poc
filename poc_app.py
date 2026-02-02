@@ -568,7 +568,8 @@ def call_gemini_fact_check(
     sources: List[str],
     source_registry: Dict[int, dict],
     mode: Literal["single_call", "analysis_only"],
-    model_id: str = "gemini-2.5-flash"
+    model_id: str = "gemini-2.5-flash",
+    thinking_level: str = "low"
 ) -> dict:
     """
     Call Gemini with URL context for fact-checking.
@@ -578,6 +579,7 @@ def call_gemini_fact_check(
         sources: List of source URLs
         source_registry: Pre-built registry mapping indices to source metadata
         mode: "single_call" (analysis + correction) or "analysis_only" (just analysis)
+        thinking_level: Reasoning depth - "low", "medium", or "high"
         model_id: Gemini model to use
     
     Returns:
@@ -680,7 +682,7 @@ Be thorough and cite specific evidence from the sources."""
             tools=tools,
             response_mime_type="application/json",
             response_schema=schema,
-            thinking_config=types.ThinkingConfig(thinking_level="low"),
+            thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
         )
     )
     
@@ -1007,6 +1009,15 @@ with st.sidebar:
         index=0
     )
     
+    # Gemini thinking/reasoning level
+    thinking_level = st.selectbox(
+        "Gemini Thinking Level",
+        ["low", "medium", "high"],
+        index=0,
+        help="Controls reasoning depth. Low is faster with similar quality."
+    )
+    st.caption("💡 *For me I liked the low level — faster with minimal quality difference.*")
+    
     st.divider()
     
     # Environment check
@@ -1140,7 +1151,8 @@ if run_button:
                             sources=sources,
                             source_registry=source_registry,
                             mode="single_call",
-                            model_id=gemini_model
+                            model_id=gemini_model,
+                            thinking_level=thinking_level
                         )
                         timing_metrics["single_call_total"] = time.time() - start_time
                         
@@ -1162,7 +1174,8 @@ if run_button:
                             sources=sources,
                             source_registry=source_registry,
                             mode="analysis_only",
-                            model_id=gemini_model
+                            model_id=gemini_model,
+                            thinking_level=thinking_level
                         )
                         timing_metrics["two_step_analysis"] = time.time() - start_time
                         
