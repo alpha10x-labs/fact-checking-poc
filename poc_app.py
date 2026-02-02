@@ -608,7 +608,7 @@ INDEXED SOURCE URLs:
 {sources_text}
 
 Your task:
-1. Identify each distinct claim in the answer
+1. Identify each distinct claim in the answer (Make sure to include all the claims)
 2. For each claim, verify against the sources:
    - Find which source(s) support it
    - For EACH supporting source, provide a separate source_evidence entry with:
@@ -651,7 +651,7 @@ INDEXED SOURCE URLs:
 {sources_text}
 
 Your task:
-1. Identify each distinct claim in the answer
+1. Identify each distinct claim in the answer (Make sure to include all the claims)
 2. For each claim, verify against the sources:
    - Find which source(s) support it
    - For EACH supporting source, provide a separate source_evidence entry with:
@@ -665,6 +665,7 @@ Your task:
      * PARTIALLY_GROUNDED: Claim is partially supported
      * NOT_GROUNDED: Claim is contradicted or unsupported
      * UNVERIFIABLE: No source found
+   - If you failed to access the source, try one more time. If you still fail, mark it as UNVERIFIABLE.
 3. Provide overall reasoning synthesizing your findings
 4. Give a confidence score (1-5)
 
