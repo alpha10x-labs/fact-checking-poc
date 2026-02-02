@@ -680,6 +680,7 @@ Be thorough and cite specific evidence from the sources."""
             tools=tools,
             response_mime_type="application/json",
             response_schema=schema,
+            thinking_config=types.ThinkingConfig(thinking_level="low"),
         )
     )
     
