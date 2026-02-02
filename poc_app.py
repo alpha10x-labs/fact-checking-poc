@@ -1001,7 +1001,7 @@ with st.sidebar:
     # Gemini model for fact-checking
     gemini_model = st.selectbox(
         "Gemini Model (Fact-Check)",
-        ["gemini-2.5-pro", "gemini-3-flash-preview"],
+        ["gemini-3-flash-preview"],
         index=0
     )
     
