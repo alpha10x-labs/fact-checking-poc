@@ -518,8 +518,199 @@ Format the analysis with:
 5. Key risks to growth trajectory
 
 Be specific with numbers, percentages, and timeframes. Maintain analytical rigor."""
+    },
+    
+    "SWOT Analysis": {
+        "search_prompt": """You are a strategic analyst performing a comprehensive SWOT analysis.
+For the query: {query}
+
+Analyze the following dimensions with specific data and metrics:
+
+**STRENGTHS (Internal Positive Factors)**
+- Market position & competitive advantages (market share %, brand value)
+- Industry capabilities & resources (revenue, profit margins, workforce size)
+- Innovation & technology strengths (R&D spending, patents, tech adoption rates)
+- Customer relationships & partnerships (retention rates, partnership values)
+
+**WEAKNESSES (Internal Negative Factors)**
+- Market limitations & constraints (market share gaps, competitive pressures)
+- Operational & resource constraints (cost structures, skill gaps, dependencies)
+- Innovation & adaptation challenges (technology lag, R&D deficits)
+
+**OPPORTUNITIES (External Positive Factors)**
+- Market expansion possibilities (untapped segments, growth projections)
+- Economic & policy environment (incentives, favorable regulations)
+- Technology & innovation opportunities (emerging tech market sizes, automation savings)
+
+**THREATS (External Negative Factors)**
+- Competitive & market threats (new entrants, disruption risks)
+- Economic & policy risks (regulatory changes, economic volatility)
+- Technology & disruption risks (obsolescence, cybersecurity costs)
+- Social & environmental threats (compliance costs, reputation risks)
+
+Provide specific numbers, percentages, and cite authoritative sources.""",
+        
+        "format_prompt": """Based on the following research data, create a structured SWOT analysis.
+
+Research Data:
+{search_results}
+
+Sources: {sources}
+
+Format the analysis with:
+1. Executive Summary (key strategic insights)
+2. STRENGTHS - Internal advantages with supporting data
+3. WEAKNESSES - Internal challenges with metrics
+4. OPPORTUNITIES - External growth possibilities with projections
+5. THREATS - External risks with impact assessments
+6. Strategic Implications
+
+Include specific numbers and cite sources. Maintain analytical rigor."""
+    },
+    
+    "Regulatory Hurdles": {
+        "search_prompt": """You are a regulatory analyst examining regulatory landscape and compliance challenges.
+For the query: {query}
+
+Analyze the following dimensions with specific data:
+
+**CURRENT REGULATORY LANDSCAPE**
+- Core regulatory framework (regulatory bodies, key laws, compliance costs)
+- Licensing & authorization requirements (fees, approval timeframes, success rates)
+- Operational compliance standards (costs as % of revenue, audit frequencies)
+- Financial & economic regulations (capital requirements, tax rates)
+
+**REGULATORY BARRIERS & CHALLENGES**
+- Entry barriers (entry costs, approval timelines, new entrant success rates)
+- Operational constraints (compliance costs, administrative burden hours)
+- Innovation & technology hurdles (approval delays, compliance tech costs)
+- Cross-border & international challenges (international compliance costs)
+
+**REGULATORY TRENDS & DEVELOPMENTS**
+- Emerging regulatory changes (implementation timelines, expected costs)
+- Enforcement & compliance evolution (penalty trends, monitoring costs)
+- International regulatory harmonization (standardization progress)
+
+**REGULATORY OPPORTUNITIES & ADVANTAGES**
+- Supportive regulatory environment (incentives, market protection values)
+- Compliance as competitive advantage (efficiency gains, ROI)
+- Future regulatory alignment (early adopter benefits, sandbox programs)
+
+Provide specific figures, timeframes, and cite authoritative regulatory sources.""",
+        
+        "format_prompt": """Based on the following research data, create a comprehensive regulatory analysis.
+
+Research Data:
+{search_results}
+
+Sources: {sources}
+
+Format the analysis with:
+1. Executive Summary (key regulatory insights)
+2. Current Regulatory Landscape (framework, requirements, costs)
+3. Regulatory Barriers & Challenges (entry barriers, operational constraints)
+4. Regulatory Trends & Developments (emerging changes, enforcement evolution)
+5. Regulatory Opportunities (advantages, future alignment)
+6. Compliance Recommendations
+
+Include specific compliance costs, timeframes, and cite regulatory sources."""
+    },
+    
+    "Investment: Active Segments": {
+        "search_prompt": """You are an investment analyst examining market segmentation and investment activity.
+For the query: {query}
+
+Analyze the following dimensions with verified investment data:
+
+**MARKET SEGMENTATION**
+- Key market segments attracting investment (by technology, application, geography)
+- Segment-level market sizes and growth rates
+- Emerging vs mature segment comparison
+- Segment-specific investment trends and patterns
+
+**INVESTMENT VOLUME**
+- Total investment volume (VC, PE, M&A) with specific amounts
+- Year-over-year investment trends and growth rates
+- Deal count and average deal size by segment
+- Investment stage distribution (seed, Series A-D, growth, buyout)
+- Geographic distribution of investments
+
+**VC/PE DEEP DIVE**
+- Most active VC and PE firms in each segment
+- Recent major deals with amounts and valuations
+- Investment thesis patterns and focus areas
+- Exit activity and returns data
+- Fund sizes and dry powder availability
+
+Provide specific dollar amounts, deal counts, and percentages. Cite authoritative sources (PitchBook, Crunchbase, CB Insights, etc.).""",
+        
+        "format_prompt": """Based on the following research data, create a comprehensive active segments investment analysis.
+
+Research Data:
+{search_results}
+
+Sources: {sources}
+
+Format the analysis with:
+1. Executive Summary (key investment highlights)
+2. Market Segmentation Overview (segments attracting most capital)
+3. Investment Volume Analysis (totals, trends, deal metrics)
+4. VC/PE Deep Dive (active investors, major deals, valuations)
+5. Investment Outlook (emerging opportunities, predicted activity)
+
+Include specific dollar amounts, deal counts, and growth rates. Cite investment data sources."""
+    },
+    
+    "Investment: Active Investors": {
+        "search_prompt": """You are an investment analyst profiling active investors and investment sentiment.
+For the query: {query}
+
+Analyze the following dimensions with verified investor data:
+
+**INVESTOR CATEGORIES**
+- Venture Capital firms (early stage, growth stage specialists)
+- Private Equity firms (buyout, growth equity focus)
+- Corporate Venture Capital (strategic investors)
+- Sovereign Wealth Funds and institutional investors
+- Angel investors and family offices
+- Investment activity level and check sizes by category
+
+**INVESTMENT SENTIMENT**
+- Current investor sentiment and appetite (bullish/bearish indicators)
+- Key investment themes and thesis patterns
+- Risk perception and valuation trends
+- Sector rotation and emerging focus areas
+- Competitive dynamics for deal flow
+- LP sentiment and fund allocation trends
+
+**STRATEGIC INSIGHTS**
+- Most active investors with recent deals and amounts
+- Investment criteria and sweet spots by investor type
+- Co-investment patterns and syndication networks
+- Geographic and stage preferences
+- Portfolio company success metrics
+- Predicted investment behavior and focus shifts
+
+Provide specific investor names, deal amounts, and investment patterns. Cite authoritative sources.""",
+        
+        "format_prompt": """Based on the following research data, create a comprehensive active investors analysis.
+
+Research Data:
+{search_results}
+
+Sources: {sources}
+
+Format the analysis with:
+1. Executive Summary (key investor landscape insights)
+2. Investor Categories Breakdown (VCs, PEs, CVCs, institutional)
+3. Investment Sentiment Analysis (appetite, themes, risk perception)
+4. Top Active Investors Profile (names, recent deals, focus areas)
+5. Strategic Outlook (predicted investor behavior, emerging opportunities)
+
+Include specific investor names, deal amounts, and sentiment indicators. Cite investment data sources."""
     }
 }
+
 
 
 # ============================================================================
