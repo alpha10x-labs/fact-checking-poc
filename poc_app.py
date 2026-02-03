@@ -127,7 +127,7 @@ def generate_source_id(url: str) -> str:
     return f"WEB{hash_value[:3]}"
 
 
-def create_text_fragment_url(base_url: str, snippet: str, max_words: int = 6) -> str:
+def create_text_fragment_url(base_url: str, snippet: str, max_words: int = 8) -> str:
     """
     Create a URL with Text Fragment highlighting.
     Uses the :~:text= fragment to highlight specific text on the page.
