@@ -901,12 +901,22 @@ def call_formatter_llm(
 ) -> str:
     """Format the answer using LLM via safe_llm_core factory (baseline - no fact-checking)."""
     
-    # Build the prompt
+    # Build the prompt with safe formatting
     sources_str = ", ".join(sources[:10]) if sources else "N/A"
-    prompt = format_prompt.format(
+    
+    # Use safe formatting with defaults for missing placeholders
+    class SafeDict(dict):
+        def __missing__(self, key):
+            return f"{{{key}}}"  # Return placeholder as-is if missing
+    
+    try:
+        prompt = format_prompt.format_map(SafeDict(
         search_results=search_results,
         sources=sources_str
-    )
+        ))
+    except (KeyError, ValueError):
+        # Fallback: append data if formatting fails
+        prompt = f"{format_prompt}\n\nResearch Data:\n{search_results}\n\nSources: {sources_str}"
     
     # Get LLM
     llm = get_llm(llm_name)
@@ -1169,12 +1179,66 @@ st.caption("Compare baseline vs fact-checked flows for hallucination detection")
 with st.sidebar:
     st.header("⚙️ Configuration")
     
-    # Section preset
+    # Section preset (with Custom option)
+    preset_options = list(SECTION_PRESETS.keys()) + ["🛠️ Custom"]
     section_type = st.selectbox(
         "Section Type",
-        list(SECTION_PRESETS.keys()),
+        preset_options,
         index=0
     )
+    
+    # Track if custom mode is selected
+    use_custom_prompts = (section_type == "🛠️ Custom")
+    
+    # Show custom prompt inputs when Custom is selected
+    if use_custom_prompts:
+        # Template selector - lets users start from an existing preset
+        template_options = list(SECTION_PRESETS.keys())
+        template_preset = st.selectbox(
+            "Start from template",
+            template_options,
+            index=0,
+            help="Select a preset to use as a starting point for your custom prompts"
+        )
+        
+        # Get template values
+        template = SECTION_PRESETS[template_preset]
+        
+        # Initialize or update when template changes
+        # (also handles first load when keys don't exist)
+        if st.session_state.get("custom_template") != template_preset:
+            st.session_state["custom_template"] = template_preset
+            # Update the widget keys directly (this is what text_area reads from)
+            st.session_state["custom_search_prompt"] = template["search_prompt"]
+            st.session_state["custom_format_prompt"] = template["format_prompt"]
+            st.rerun()  # Rerun to apply the new values
+        
+        custom_search_prompt = st.text_area(
+            "Search Prompt",
+            height=180,
+            key="custom_search_prompt"
+        )
+        
+        custom_format_prompt = st.text_area(
+            "Format Prompt",
+            height=180,
+            key="custom_format_prompt"
+        )
+        
+        # Info box explaining placeholders
+        st.info("""
+**Available placeholders** (auto-replaced at runtime):
+- `{query}` → Your search query *(use in Search Prompt)*
+- `{search_results}` → Perplexity's response *(use in Format Prompt)*
+- `{sources}` → List of source URLs *(use in Format Prompt)*
+        """)
+        
+        # Validation warnings (non-blocking)
+        if "{query}" not in custom_search_prompt:
+            st.warning("⚠️ Missing `{query}` in search prompt")
+        
+        if "{search_results}" not in custom_format_prompt:
+            st.warning("⚠️ Missing `{search_results}` in format prompt")
     
     # Fact-check mode
     st.subheader("Fact-Check Mode")
@@ -1233,13 +1297,15 @@ query = st.text_input(
     help="Enter a market research query to analyze"
 )
 
-# Show selected preset info
-with st.expander("📋 View Selected Prompts"):
-    preset = SECTION_PRESETS[section_type]
-    st.markdown("**Search Prompt:**")
-    st.code(preset["search_prompt"], language="text")
-    st.markdown("**Format Prompt:**")
-    st.code(preset["format_prompt"], language="text")
+# Show selected preset info (only for non-custom, since custom shows prompts in sidebar)
+if not use_custom_prompts:
+    with st.expander("📋 View Selected Prompts"):
+        preset = SECTION_PRESETS[section_type]
+        st.caption(f"Using preset: **{section_type}**")
+        st.markdown("**Search Prompt:**")
+        st.code(preset["search_prompt"], language="text")
+        st.markdown("**Format Prompt:**")
+        st.code(preset["format_prompt"], language="text")
 
 # Run button
 run_button = st.button("🚀 Run Comparison", type="primary", use_container_width=True)
@@ -1252,7 +1318,17 @@ if run_button:
     elif not get_env("GEMINI_API_KEY"):
         st.error("GEMINI_API_KEY not set")
     else:
-        preset = SECTION_PRESETS[section_type]
+        # Determine which prompts to use (custom or preset)
+        if use_custom_prompts:
+            # Custom mode: get from session state
+            default_template = SECTION_PRESETS["Trends Analyzer"]  # Fallback default
+            raw_search_prompt = st.session_state.get("custom_search_prompt", default_template["search_prompt"])
+            raw_format_prompt = st.session_state.get("custom_format_prompt", default_template["format_prompt"])
+        else:
+            # Preset mode: get from SECTION_PRESETS
+            preset = SECTION_PRESETS[section_type]
+            raw_search_prompt = preset["search_prompt"]
+            raw_format_prompt = preset["format_prompt"]
         
         # Initialize timing metrics
         timing_metrics = {}
@@ -1262,7 +1338,12 @@ if run_button:
         # ========================================
         with st.spinner("🔍 Searching with Perplexity..."):
             try:
-                search_prompt = preset["search_prompt"].format(query=query)
+                # Safe formatting for search prompt
+                try:
+                    search_prompt = raw_search_prompt.format(query=query)
+                except KeyError as e:
+                    # If placeholder is missing, use as-is with query appended
+                    search_prompt = f"{raw_search_prompt}\n\nQuery: {query}"
                 
                 start_time = time.time()
                 perplexity_result = call_perplexity(
@@ -1311,7 +1392,7 @@ if run_button:
                     baseline_answer = call_formatter_llm(
                         search_results=perplexity_answer,
                         sources=sources,
-                        format_prompt=preset["format_prompt"],
+                        format_prompt=raw_format_prompt,
                         llm_name=formatter_llm
                     )
                     timing_metrics["baseline_formatting"] = time.time() - start_time
