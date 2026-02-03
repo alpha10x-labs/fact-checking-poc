@@ -17,7 +17,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 from typing import List, Literal, Optional, Dict, Set
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI
 from langchain_anthropic import ChatAnthropic
@@ -125,6 +125,87 @@ def generate_source_id(url: str) -> str:
     """
     hash_value = hashlib.md5(url.encode()).hexdigest()
     return f"WEB{hash_value[:3]}"
+
+
+def create_text_fragment_url(base_url: str, snippet: str, max_words: int = 6) -> str:
+    """
+    Create a URL with Text Fragment highlighting.
+    Uses the :~:text= fragment to highlight specific text on the page.
+    
+    Browser support: Chrome 80+, Edge 80+, Safari 16.1+ (NOT Firefox)
+    
+    Args:
+        base_url: The source URL
+        snippet: The text snippet to highlight
+        max_words: Maximum words to use for matching (shorter = more reliable)
+    
+    Returns:
+        URL with text fragment for direct highlighting
+    """
+    if not snippet or not base_url:
+        return base_url
+    if snippet.endswith("..."):
+        snippet = snippet[:-3]
+    # Clean and normalize the snippet
+    cleaned = " ".join(snippet.split())  # Normalize whitespace
+    
+    # Extract first N words for more reliable matching
+    words = cleaned.split()
+    if len(words) > max_words:
+        # Use first few words as start, last few as end for range matching
+        start_words = " ".join(words[:max_words // 2])
+        end_words = " ".join(words[-(max_words // 2):])
+        
+        # URL encode both parts
+        start_encoded = quote(start_words, safe='')
+        end_encoded = quote(end_words, safe='')
+        
+        # Use range syntax: text=start,end
+        fragment = f":~:text={start_encoded},{end_encoded}"
+    else:
+        # Short snippet - use as-is
+        encoded_snippet = quote(cleaned, safe='')
+        fragment = f":~:text={encoded_snippet}"
+    
+    # Handle existing fragments in URL
+    if "#" in base_url:
+        # Append to existing fragment
+        return f"{base_url}{fragment}"
+    else:
+        return f"{base_url}#{fragment}"
+
+
+def create_highlight_url_simple(base_url: str, snippet: str, word_count: int = 6) -> str:
+    """
+    Create a simpler highlight URL using just the first N words.
+    More reliable for matching but less precise highlighting.
+    
+    Args:
+        base_url: The source URL
+        snippet: The text snippet to highlight  
+        word_count: Number of words to use (default 6)
+    
+    Returns:
+        URL with text fragment
+    """
+    if not snippet or not base_url:
+        return base_url
+    
+    # Normalize and extract first N words
+    cleaned = " ".join(snippet.split())
+    words = cleaned.split()[:word_count]
+    text_to_find = " ".join(words)
+    
+    # URL encode
+    encoded = quote(text_to_find, safe='')
+    
+    # Build URL
+    fragment = f":~:text={encoded}"
+    
+    if "#" in base_url:
+        return f"{base_url}{fragment}"
+    else:
+        return f"{base_url}#{fragment}"
 
 
 def get_domain_label(url: str) -> str:
@@ -1056,6 +1137,9 @@ def display_claim_card(claim, url_registry: Dict[int, dict], index: int):
         label = url_meta.get("label", f"Source {ev.source_index}")
         url = url_meta.get("url", "")
         
+        # Create highlight URL that jumps directly to the snippet
+        highlight_url = create_text_fragment_url(url, ev.snippet) if url else ""
+        
         authority_color = '#2e7d32' if ev.authority == 'High' else '#f57c00' if ev.authority == 'Medium' else '#c62828'
         
         # Check if citation_id is available (single-call mode)
@@ -1076,7 +1160,8 @@ def display_claim_card(claim, url_registry: Dict[int, dict], index: int):
             f'<div style="font-size: 12px; color: #555; font-style: italic; margin-bottom: 4px;">'
             f'📝 "{ev.snippet[:250]}{"..." if len(ev.snippet) > 250 else ""}"'
             f'</div>'
-            f'<a href="{url}" target="_blank" style="font-size: 11px; color: #1976d2;">🔗 View Source</a>'
+            f'<a href="{highlight_url}" target="_blank" style="font-size: 11px; color: #1976d2;">🔗 View Source & Highlight Snippet</a>'
+            f'<span style="font-size: 10px; color: #999; margin-left: 8px;" title="Text highlighting works in Chrome, Edge, Safari. Firefox shows page without highlight.">(Chrome/Edge/Safari)</span>'
             f'</div>'
         )
         sources_html_parts.append(source_html)
@@ -1482,11 +1567,17 @@ if run_button:
                         for cit_id in sorted(citations_used):
                             if cit_id in citation_registry:
                                 cit = citation_registry[cit_id]
+                                snippet = cit.get('snippet', '')
+                                source_url = cit.get('source_url', '')
+                                
+                                # Create highlight URL for direct snippet access
+                                highlight_url = create_text_fragment_url(source_url, snippet) if source_url else source_url
+                                
                                 st.markdown(f"""
 **[{cit_id}]** - {cit.get('source_label', 'Unknown')}
 - Type: {cit.get('source_type', 'Unknown')} | Authority: {cit.get('authority', 'Unknown')} | Year: {cit.get('year', 'Unknown')}
-- Snippet: _{cit.get('snippet', '')[:200]}..._
-- [View Source]({cit.get('source_url', '')})
+- Snippet: _{snippet[:200]}{"..." if len(snippet) > 200 else ""}_
+- [🔗 View Source & Highlight]({highlight_url}) *(Chrome/Edge/Safari)*
 ---
 """)
                     
