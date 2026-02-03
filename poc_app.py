@@ -127,85 +127,75 @@ def generate_source_id(url: str) -> str:
     return f"WEB{hash_value[:3]}"
 
 
-def create_text_fragment_url(base_url: str, snippet: str, max_words: int = 8) -> str:
+def create_text_fragment_url(base_url: str, snippet: str, words_per_anchor: int = 3) -> str:
     """
-    Create a URL with Text Fragment highlighting.
-    Uses the :~:text= fragment to highlight specific text on the page.
+    Create a URL with Text Fragment highlighting using range matching.
+    Uses the :~:text=start,end fragment syntax for two anchor points.
     
     Browser support: Chrome 80+, Edge 80+, Safari 16.1+ (NOT Firefox)
+    
+    Strategy: Use first N words as start anchor, last N words as end anchor.
+    Two anchors = double the chance to match on the page.
     
     Args:
         base_url: The source URL
         snippet: The text snippet to highlight
-        max_words: Maximum words to use for matching (shorter = more reliable)
+        words_per_anchor: Words to use for each anchor (default 3)
     
     Returns:
         URL with text fragment for direct highlighting
     """
     if not snippet or not base_url:
         return base_url
+    
+    # Remove trailing ellipsis if present
     if snippet.endswith("..."):
         snippet = snippet[:-3]
-    # Clean and normalize the snippet
-    cleaned = " ".join(snippet.split())  # Normalize whitespace
     
-    # Extract first N words for more reliable matching
+    # Normalize whitespace
+    cleaned = " ".join(snippet.split())
     words = cleaned.split()
-    if len(words) > max_words:
-        # Use first few words as start, last few as end for range matching
-        start_words = " ".join(words[:max_words // 2])
-        end_words = " ".join(words[-(max_words // 2):])
-        
-        # URL encode both parts
-        start_encoded = quote(start_words, safe='')
-        end_encoded = quote(end_words, safe='')
-        
-        # Use range syntax: text=start,end
-        fragment = f":~:text={start_encoded},{end_encoded}"
-    else:
-        # Short snippet - use as-is
-        encoded_snippet = quote(cleaned, safe='')
-        fragment = f":~:text={encoded_snippet}"
     
-    # Handle existing fragments in URL
-    if "#" in base_url:
-        # Append to existing fragment
-        return f"{base_url}{fragment}"
-    else:
-        return f"{base_url}#{fragment}"
-
-
-def create_highlight_url_simple(base_url: str, snippet: str, word_count: int = 6) -> str:
-    """
-    Create a simpler highlight URL using just the first N words.
-    More reliable for matching but less precise highlighting.
-    
-    Args:
-        base_url: The source URL
-        snippet: The text snippet to highlight  
-        word_count: Number of words to use (default 6)
-    
-    Returns:
-        URL with text fragment
-    """
-    if not snippet or not base_url:
+    if not words:
         return base_url
     
-    # Normalize and extract first N words
-    cleaned = " ".join(snippet.split())
-    words = cleaned.split()[:word_count]
-    text_to_find = " ".join(words)
+    def clean_anchor(word_list: list, is_start: bool) -> str:
+        """Clean punctuation from anchor words."""
+        if not word_list:
+            return ""
+        result = word_list.copy()
+        # Strip leading punctuation from first word
+        result[0] = result[0].lstrip('"\'""''([{«')
+        # Strip trailing punctuation from last word
+        result[-1] = result[-1].rstrip('"\'""'')\]}»,.;:!?')
+        return " ".join(result)
     
-    # URL encode
-    encoded = quote(text_to_find, safe='')
+    if len(words) > words_per_anchor * 2:
+        # Long snippet: use range matching (start...end)
+        start_words = words[:words_per_anchor]
+        end_words = words[-words_per_anchor:]
+        
+        start_text = clean_anchor(start_words, is_start=True)
+        end_text = clean_anchor(end_words, is_start=False)
+        
+        # URL encode both anchors
+        start_encoded = quote(start_text, safe='')
+        end_encoded = quote(end_text, safe='')
+        
+        fragment = f":~:text={start_encoded},{end_encoded}"
+    else:
+        # Short snippet: use simple matching
+        search_text = clean_anchor(words, is_start=True)
+        encoded = quote(search_text, safe='')
+        fragment = f":~:text={encoded}"
     
-    # Build URL
-    fragment = f":~:text={encoded}"
-    
+    # Append fragment to URL
     if "#" in base_url:
         return f"{base_url}{fragment}"
     else:
         return f"{base_url}#{fragment}"
+
+
 
 
 def get_domain_label(url: str) -> str:
