@@ -825,6 +825,41 @@ def call_perplexity(
         raise Exception(f"Perplexity API error: {response.status_code} - {response.text}")
 
 
+def call_exa(
+    query: str,
+    system_prompt: str,
+) -> dict:
+    """
+    Exa AI search API call.
+    
+    Returns dict with same structure as call_perplexity for compatibility:
+    - "answer": The generated answer
+    - "sources": List of source URLs
+    """
+    from exa_py import Exa
+    
+    api_key = get_env("EXA_API_KEY")
+    if not api_key:
+        raise ValueError("EXA_API_KEY environment variable not set")
+    
+    exa = Exa(api_key)
+    
+    # Combine system prompt and query for Exa
+    result = exa.answer(
+        query,
+        system_prompt=system_prompt,
+        text=True  # Include text content from sources
+    )
+    
+    # Extract URLs from citations
+    sources = [citation.url for citation in result.citations if citation.url]
+    
+    return {
+        "answer": result.answer,
+        "sources": sources,
+    }
+
+
 def call_gemini_fact_check(
     answer: str,
     sources: List[str],
@@ -1254,6 +1289,14 @@ st.caption("Compare baseline vs fact-checked flows for hallucination detection")
 with st.sidebar:
     st.header("⚙️ Configuration")
     
+    # Search provider selector
+    search_provider = st.selectbox(
+        "Search Provider",
+        ["Perplexity", "Exa"],
+        index=0,
+        help="Perplexity: Fast, good for general queries. Exa: Better for research/academic sources."
+    )
+    
     # Section preset (with Custom option)
     preset_options = list(SECTION_PRESETS.keys()) + ["🛠️ Custom"]
     section_type = st.selectbox(
@@ -1304,7 +1347,7 @@ with st.sidebar:
         st.info("""
 **Available placeholders** (auto-replaced at runtime):
 - `{query}` → Your search query *(use in Search Prompt)*
-- `{search_results}` → Perplexity's response *(use in Format Prompt)*
+- `{search_results}` → Search provider's response *(use in Format Prompt)*
 - `{sources}` → List of source URLs *(use in Format Prompt)*
         """)
         
@@ -1353,17 +1396,21 @@ with st.sidebar:
     # Environment check
     st.subheader("🔑 API Keys Status")
     perplexity_ok = bool(get_env("PERPLEXITY_API_KEY"))
+    exa_ok = bool(get_env("EXA_API_KEY"))
     gemini_ok = bool(get_env("GEMINI_API_KEY"))
     openai_ok = bool(get_env("AZURE_OPENAI_API_KEY"))
     anthropic_ok = bool(get_env("ANTHROPIC_API_KEY"))
     
     st.markdown(f"- Perplexity: {'✅' if perplexity_ok else '❌'}")
+    st.markdown(f"- Exa: {'✅' if exa_ok else '❌'}")
     st.markdown(f"- Gemini: {'✅' if gemini_ok else '❌'}")
     st.markdown(f"- OpenAI: {'✅' if openai_ok else '❌'}")
     st.markdown(f"- Anthropic: {'✅' if anthropic_ok else '❌'}")
     
-    if not all([perplexity_ok, gemini_ok]):
-        st.warning("Perplexity & Gemini keys required. Other keys needed based on Formatter LLM selection.")
+    # Check if selected search provider key is available
+    search_key_ok = perplexity_ok if search_provider == "Perplexity" else exa_ok
+    if not search_key_ok or not gemini_ok:
+        st.warning(f"{search_provider} & Gemini keys required. Other keys needed based on Formatter LLM selection.")
 
 # Main content
 query = st.text_input(
@@ -1388,8 +1435,10 @@ run_button = st.button("🚀 Run Comparison", type="primary", use_container_widt
 if run_button:
     if not query.strip():
         st.error("Please enter a query")
-    elif not get_env("PERPLEXITY_API_KEY"):
+    elif search_provider == "Perplexity" and not get_env("PERPLEXITY_API_KEY"):
         st.error("PERPLEXITY_API_KEY not set")
+    elif search_provider == "Exa" and not get_env("EXA_API_KEY"):
+        st.error("EXA_API_KEY not set")
     elif not get_env("GEMINI_API_KEY"):
         st.error("GEMINI_API_KEY not set")
     else:
@@ -1409,9 +1458,9 @@ if run_button:
         timing_metrics = {}
         
         # ========================================
-        # Step 1: Perplexity Search
+        # Step 1: Web Search (Perplexity or Exa)
         # ========================================
-        with st.spinner("🔍 Searching with Perplexity..."):
+        with st.spinner(f"🔍 Searching with {search_provider}..."):
             try:
                 # Safe formatting for search prompt
                 try:
@@ -1421,18 +1470,27 @@ if run_button:
                     search_prompt = f"{raw_search_prompt}\n\nQuery: {query}"
                 
                 start_time = time.time()
-                perplexity_result = call_perplexity(
-                    query=query,
-                    system_prompt=search_prompt
-                )
-                timing_metrics["perplexity_search"] = time.time() - start_time
                 
-                perplexity_answer = perplexity_result["answer"]
-                sources = perplexity_result["sources"]
+                # Call the selected search provider
+                if search_provider == "Perplexity":
+                    search_result = call_perplexity(
+                        query=query,
+                        system_prompt=search_prompt
+                    )
+                else:  # Exa
+                    search_result = call_exa(
+                        query=query,
+                        system_prompt=search_prompt
+                    )
                 
-                st.success(f"✅ Perplexity returned {len(sources)} sources ({timing_metrics['perplexity_search']:.2f}s)")
+                timing_metrics["web_search"] = time.time() - start_time
+                
+                search_answer = search_result["answer"]
+                sources = search_result["sources"]
+                
+                st.success(f"✅ {search_provider} returned {len(sources)} sources ({timing_metrics['web_search']:.2f}s)")
             except Exception as e:
-                st.error(f"Perplexity error: {e}")
+                st.error(f"{search_provider} error: {e}")
                 st.stop()
         
         # ========================================
@@ -1440,9 +1498,9 @@ if run_button:
         # ========================================
         source_registry = build_source_registry(sources)
         
-        # Show Perplexity raw output with registry info
-        with st.expander("📄 Raw Perplexity Output"):
-            st.markdown(perplexity_answer)
+        # Show raw search output with registry info
+        with st.expander(f"📄 Raw {search_provider} Output"):
+            st.markdown(search_answer)
             st.markdown("**Sources Registry:**")
             for idx, meta in source_registry.items():
                 st.markdown(f"[{idx}] **{meta['id']}** - {meta['label']}")
@@ -1459,13 +1517,13 @@ if run_button:
         # ========================================
         with col1:
             st.subheader("📊 Baseline")
-            st.caption("Perplexity → Formatter → Answer")
+            st.caption(f"{search_provider} → Formatter → Answer")
             
             with st.spinner("Formatting baseline answer..."):
                 try:
                     start_time = time.time()
                     baseline_answer = call_formatter_llm(
-                        search_results=perplexity_answer,
+                        search_results=search_answer,
                         sources=sources,
                         format_prompt=raw_format_prompt,
                         llm_name=formatter_llm
@@ -1485,7 +1543,7 @@ if run_button:
         # ========================================
         with col2:
             st.subheader("✅ Fact-Checked")
-            st.caption(f"Perplexity → Gemini → {'Correction' if fact_check_mode == 'single_call' else 'Correction LLM'} → Answer")
+            st.caption(f"{search_provider} → Gemini → {'Correction' if fact_check_mode == 'single_call' else 'Correction LLM'} → Answer")
             
             # Step 3: Fact-check with Gemini
             with st.spinner("🔍 Fact-checking with Gemini..."):
@@ -1494,7 +1552,7 @@ if run_button:
                         # Single call: Gemini assigns citation IDs and uses them directly
                         start_time = time.time()
                         fc_result = call_gemini_fact_check(
-                            answer=perplexity_answer,
+                            answer=search_answer,
                             sources=sources,
                             source_registry=source_registry,
                             mode="single_call",
@@ -1517,7 +1575,7 @@ if run_button:
                         # Two-step: analysis first, then correction LLM
                         start_time = time.time()
                         fc_result = call_gemini_fact_check(
-                            answer=perplexity_answer,
+                            answer=search_answer,
                             sources=sources,
                             source_registry=source_registry,
                             mode="analysis_only",
@@ -1536,7 +1594,7 @@ if run_button:
                         with st.spinner("📝 Generating corrected answer with citations..."):
                             start_time = time.time()
                             formatted_result = call_correction_llm(
-                                original_answer=perplexity_answer,
+                                original_answer=search_answer,
                                 analysis=analysis,
                                 url_registry=source_registry,
                                 citation_registry=citation_registry,
@@ -1595,8 +1653,8 @@ if run_button:
             metrics_cols = st.columns(4)
             
             with metrics_cols[0]:
-                perplexity_time = timing_metrics.get("perplexity_search", 0)
-                st.metric("🔍 Perplexity Search", f"{perplexity_time:.2f}s")
+                search_time = timing_metrics.get("web_search", 0)
+                st.metric(f"🔍 {search_provider} Search", f"{search_time:.2f}s")
             
             with metrics_cols[1]:
                 baseline_time = timing_metrics.get("baseline_formatting", 0)
@@ -1623,21 +1681,21 @@ if run_button:
             
             # Detailed breakdown in expander
             with st.expander("📊 Detailed Timing Breakdown"):
-                perplexity_time = timing_metrics.get("perplexity_search", 0)
+                search_time = timing_metrics.get("web_search", 0)
                 baseline_time = timing_metrics.get("baseline_formatting", 0)
                 
                 st.markdown("#### Common Steps")
-                st.markdown(f"- **Perplexity Search**: {perplexity_time:.2f}s")
+                st.markdown(f"- **{search_provider} Search**: {search_time:.2f}s")
                 
                 st.markdown("#### Baseline Flow")
-                baseline_total = perplexity_time + baseline_time
+                baseline_total = search_time + baseline_time
                 st.markdown(f"- **Formatting**: {baseline_time:.2f}s")
                 st.markdown(f"- **Total**: **{baseline_total:.2f}s**")
                 
                 st.markdown("#### Fact-Checked Flow")
                 if fact_check_mode == "single_call":
                     single_call_time = timing_metrics.get("single_call_total", 0)
-                    fc_total = perplexity_time + single_call_time
+                    fc_total = search_time + single_call_time
                     st.markdown(f"- **Gemini Single-Call** (analysis + correction): {single_call_time:.2f}s")
                     st.markdown(f"- **Total**: **{fc_total:.2f}s**")
                     
@@ -1647,7 +1705,7 @@ if run_button:
                     analysis_time = timing_metrics.get("two_step_analysis", 0)
                     correction_time = timing_metrics.get("two_step_correction", 0)
                     two_step_total = analysis_time + correction_time
-                    fc_total = perplexity_time + two_step_total
+                    fc_total = search_time + two_step_total
                     
                     st.markdown(f"- **Gemini Analysis**: {analysis_time:.2f}s")
                     st.markdown(f"- **Correction LLM**: {correction_time:.2f}s")
